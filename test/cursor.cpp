@@ -226,3 +226,40 @@ TEST_CASE("lenses over with expression")
     CHECK(person_data->name == "new name");
     CHECK(name.get() == "new name");
 }
+
+#include <zug/tuplify.hpp>
+#include <zug/transducer/zip.hpp>
+#include <zug/transducer/unzip.hpp>
+
+TEST_CASE("tuple unfolding")
+{
+    auto callback = [] ([[maybe_unused]] int x, [[maybe_unused]] std::string y) {
+        return std::to_string(x) + "-" + y;
+    };
+
+    auto callback_tuple = [] ([[maybe_unused]] std::tuple<int, std::string> x) {
+        return std::to_string(std::get<0>(x)) + "-" + std::get<1>(x);
+    };
+
+
+    state<int, automatic_tag> value1{7};
+    state<std::string, automatic_tag> value2{"value"};
+
+
+    reader<std::string> converted_value{with(value1, value2).map(callback)};
+    reader<std::string> converted_value2{with(value1, value2).xform(zug::zip).map(callback_tuple)};
+
+    CHECK(converted_value.get() == "7-value");
+    CHECK(converted_value2.get() == "7-value");
+
+    reader<std::tuple<int, std::string>> tuplified{with(value1, value2)};
+
+
+    // Fails to compile!
+    // reader<std::string> converted_from_tuple{tuplified.xform(zug::unzip).map(callback)};
+
+    reader<std::string> converted_from_tuple2{tuplified.map(callback_tuple)};
+
+    //CHECK(converted_from_tuple.get() == "7-value");
+    CHECK(converted_from_tuple2.get() == "7-value");
+}
